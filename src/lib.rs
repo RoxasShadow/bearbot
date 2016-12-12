@@ -79,13 +79,13 @@ pub mod honeypot {
         pub fn post<I, K, V, T>(&self, endpoint: &str, pairs: I) -> Result<T, ClientError>
             where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str>, T: serde::Deserialize
         {
-            let mut response = hyper::Client::new()
-                                    .post(&*format!("{}{}", self.base_url, endpoint))
-                                    .headers(self.headers.to_owned())
-                                    .body(&*form_urlencoded::Serializer::new(String::new())
-                                          .extend_pairs(pairs)
-                                          .finish())
-                                    .send();
+            let response = hyper::Client::new()
+                .post(&*format!("{}{}", self.base_url, endpoint))
+                .headers(self.headers.to_owned())
+                .body(&*form_urlencoded::Serializer::new(String::new())
+                      .extend_pairs(pairs)
+                      .finish())
+                .send();
 
             self.parse_response(response)
         }
@@ -96,10 +96,10 @@ pub mod honeypot {
             let mut url = Url::parse(&*format!("{}{}", self.base_url, endpoint)).unwrap();
             url.query_pairs_mut().clear().extend_pairs(pairs);
 
-            let mut response = hyper::Client::new()
-                                    .get(url)
-                                    .headers(self.headers.to_owned())
-                                    .send();
+            let response = hyper::Client::new()
+                .get(url)
+                .headers(self.headers.to_owned())
+                .send();
 
             self.parse_response(response)
         }
@@ -158,10 +158,11 @@ pub mod honeypot {
 }
 
 pub mod handlers {
+    use std::env;
     use std::collections::HashMap;
     use std::sync::Mutex;
     use regex::{self, Regex};
-    use slackbot::{SlackBot, Sender, CommandHandler};
+    use slackbot::{Sender, CommandHandler};
     use honeypot;
 
     lazy_static! {
@@ -176,8 +177,9 @@ pub mod handlers {
                 .captures(args.name("email").unwrap()).unwrap()
                 .name("email").unwrap();
             let password = args.name("password").unwrap();
-            let session = honeypot::RecruiterSession::new("https://staging-app.honeypot.co", email, password).unwrap();
-            sender.respond_in_channel(format!("Hello {}!", session.info.user.firstname));
+            let url = env::var("URL").unwrap();
+            let session = honeypot::RecruiterSession::new(&*url, email, password).unwrap();
+            sender.respond_in_channel(format!("Hello {}!", session.info.user.firstname)).unwrap();
             SESSIONS.lock().unwrap().insert(sender.user.id.to_owned(), session);
         }
     }
@@ -197,9 +199,11 @@ pub mod handlers {
                                                       None           => format!("{}\n\n", url)
                                                   }
                                               })
-                                              .collect::<Vec<String>>().join("\n"));
+                                              .collect::<Vec<String>>()
+                                              .join("\n"))
+                        .unwrap();
                 },
-                None => { sender.respond_in_channel("I can't do this if you don't sign in as recruiter :("); }
+                None => { sender.respond_in_channel("I can't do this if you don't sign in as recruiter :(").unwrap(); }
             };
         }
     }
