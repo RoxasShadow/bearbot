@@ -14,6 +14,7 @@ extern crate regex;
 extern crate lazy_static;
 
 pub mod honeypot {
+    use std::fmt;
     use std::io::{self, Read};
     use std::borrow::Borrow;
     use serde;
@@ -22,6 +23,7 @@ pub mod honeypot {
     use hyper::client::Response;
     use hyper::header::{Headers, ContentType, Authorization};
     use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
+    use hyper::status::StatusCode;
     use url::{Url, form_urlencoded};
 
     #[derive(Debug, PartialEq, Deserialize)]
@@ -62,11 +64,28 @@ pub mod honeypot {
         pub meta:    Meta
     }
 
+    #[derive(Debug, PartialEq, Deserialize)]
+    pub struct ErrorResponse {
+        pub error: String
+    }
+
     #[derive(Debug)]
     pub enum ClientError {
         HTTPError(hyper::Error),
         IOError(io::Error),
-        JSONError(serde_json::Error)
+        JSONError(serde_json::Error),
+        GenericError(String)
+    }
+
+    impl fmt::Display for ClientError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self {
+                &ClientError::HTTPError(ref e) => write!(f, "Error: {}", e),
+                &ClientError::IOError(ref e) => write!(f, "Error: {}", e),
+                &ClientError::JSONError(ref e) => write!(f, "Error: {}", e),
+                &ClientError::GenericError(ref e) => write!(f, "Error: {}", e)
+            }
+        }
     }
 
     #[derive(Debug)]
@@ -104,7 +123,6 @@ pub mod honeypot {
             self.parse_response(response)
         }
 
-
         pub fn parse_response<T>(&self, response: Result<Response, hyper::Error>) -> Result<T, ClientError> where T: serde::Deserialize {
             match response {
                 Ok(mut response) => {
@@ -112,6 +130,11 @@ pub mod honeypot {
                     match response.read_to_string(&mut body) {
                         Ok(_)  => {},
                         Err(e) => { return Err(ClientError::IOError(e)) },
+                    }
+
+                    if response.status == StatusCode::Unauthorized {
+                        let response: ErrorResponse = serde_json::from_str(&body).unwrap();
+                        return Err(ClientError::GenericError(response.error));
                     }
 
                     match serde_json::from_str(&body) {
@@ -178,9 +201,15 @@ pub mod handlers {
                 .name("email").unwrap();
             let password = args.name("password").unwrap();
             let url = env::var("URL").unwrap();
-            let session = honeypot::RecruiterSession::new(&*url, email, password).unwrap();
-            sender.respond_in_channel(format!("Hello {}!", session.info.user.firstname)).unwrap();
-            SESSIONS.lock().unwrap().insert(sender.user.id.to_owned(), session);
+            match honeypot::RecruiterSession::new(&*url, email, password) {
+                Ok(session) => {
+                    sender.respond_in_channel(format!("Hello {}!", session.info.user.firstname)).unwrap();
+                    SESSIONS.lock().unwrap().insert(sender.user.id.to_owned(), session);
+                },
+                Err(e) => {
+                    sender.respond_in_channel(format!("{}", e)).unwrap();
+                }
+            }
         }
     }
 
@@ -190,18 +219,24 @@ pub mod handlers {
             let sessions = SESSIONS.lock().unwrap();
             match sessions.get(&sender.user.id) {
                 Some(session) => {
-                    let results = session.find_talents(&args.name("keywords").unwrap());
-                    sender.respond_in_channel(results.unwrap().talents.iter()
-                                              .map(|t| {
-                                                  let url = format!("{}/company/talents/{}", session.client.base_url, t.id);
-                                                  match t.headline.to_owned() {
-                                                      Some(headline) => format!("{}\n{}\n\n", headline, url),
-                                                      None           => format!("{}\n\n", url)
-                                                  }
-                                              })
-                                              .collect::<Vec<String>>()
-                                              .join("\n"))
-                        .unwrap();
+                    match session.find_talents(&args.name("keywords").unwrap()) {
+                        Ok(results) => {
+                            sender.respond_in_channel(results.talents.iter()
+                                                      .map(|t| {
+                                                          let url = format!("{}/company/talents/{}", session.client.base_url, t.id);
+                                                          match t.headline.to_owned() {
+                                                              Some(headline) => format!("{}\n{}\n\n", headline, url),
+                                                              None           => format!("{}\n\n", url)
+                                                          }
+                                                      })
+                                                      .collect::<Vec<String>>()
+                                                      .join("\n"))
+                                .unwrap();
+                        },
+                        Err(e) => {
+                            sender.respond_in_channel(format!("{}", e)).unwrap();
+                        }
+                    }
                 },
                 None => { sender.respond_in_channel("I can't do this if you don't sign in as recruiter :(").unwrap(); }
             };

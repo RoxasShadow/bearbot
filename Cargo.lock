@@ -376,7 +376,7 @@ dependencies = [
 [[package]]
 name = "slackbot"
 version = "0.2.0"
-source = "git+https://github.com/RoxasShadow/slackbot?branch=regex#b3dbd225d842cef52dbe6b60227eb0745cf2d9c8"
+source = "git+https://github.com/RoxasShadow/slackbot?branch=regex#696c7aa9e860842f60184608e4bc72b7041db0ee"
 dependencies = [
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
