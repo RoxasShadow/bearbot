@@ -1,0 +1,11 @@
+language: rust
+matrix:
+  include:
+    - rust: nightly
+
+cache:
+  cargo: true
+
+script:
+  - |
+      cargo build && cargo test
