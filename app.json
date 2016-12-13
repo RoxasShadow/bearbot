@@ -1,0 +1,29 @@
+{
+  "name": "searchspot",
+  "scripts": {
+  },
+  "env": {
+    "SLACK_API_TOKEN": {
+      "required": true
+    },
+    "URL": {
+      "required": true
+    },
+    "USERNAME": {
+      "required": true
+    },
+    "RUST_VERSION": {
+      "value": "nightly"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "https://github.com/RoxasShadow/heroku-buildpack-rust.git#patch-2"
+    }
+  ]
+}
