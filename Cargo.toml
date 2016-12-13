@@ -16,6 +16,7 @@ serde_json   = "0.8"
 serde_derive = "0.8"
 
 dotenv = "0.8"
+iron   = "0.4"
 
 [lib]
 name = "bearbot"

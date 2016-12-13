@@ -2,12 +2,17 @@ extern crate slackbot;
 extern crate bearbot;
 extern crate regex;
 extern crate dotenv;
+extern crate iron;
 
 use slackbot::{SlackBot, Sender};
 use bearbot::handlers;
 
 use dotenv::dotenv;
 use std::env;
+use std::thread;
+
+use iron::prelude::*;
+use iron::status;
 
 fn main() {
     dotenv().ok();
@@ -20,6 +25,18 @@ fn main() {
     bot.on(format!(r"(hi|hey|hello|hallo) {}", username), Box::new(|sender: &mut Sender, _: &regex::Captures| {
         sender.respond_in_channel("Hey <3").unwrap();
     }));
+
+    let host = env::var("HTTP_HOST");
+    let port = env::var("HTTP_PORT");
+    if host.is_ok() && port.is_ok() {
+        let host = format!("{}:{}", host.unwrap(), port.unwrap());
+
+        thread::spawn(move || {
+            Iron::new(|_: &mut Request| {
+                Ok(Response::with((status::Ok, "Hello world!")))
+            }).http(&*host).unwrap();
+        });
+    }
 
     bot.run().unwrap();
 }
