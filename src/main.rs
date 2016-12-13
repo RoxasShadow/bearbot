@@ -33,11 +33,19 @@ fn main() {
         thread::spawn(move || {
             let host = format!("{}:{}", host.unwrap(), port.unwrap());
 
-            Iron::new(|_: &mut Request| {
+            let server = Iron::new(|_: &mut Request| {
                 Ok(Response::with((status::Ok, "Hello world!")))
-            }).http(&*host).unwrap();
+            }).http(&*host);
+
+            match server {
+                Ok(_)  => { println!("Listening on {}", host); },
+                Err(e) => { panic!("{:?}", e); }
+            }
         });
     }
 
-    bot.run().unwrap();
+    match bot.run() {
+        Ok(_)  => {},
+        Err(e) => { panic!("{:?}", e); }
+    };
 }
