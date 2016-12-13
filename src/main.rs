@@ -27,11 +27,12 @@ fn main() {
     }));
 
     let host = env::var("HTTP_HOST");
-    let port = env::var("HTTP_PORT");
-    if host.is_ok() && port.is_ok() {
-        let host = format!("{}:{}", host.unwrap(), port.unwrap());
+    let port = env::var("HTTP_PORT").or(env::var("PORT"));
 
+    if host.is_ok() && port.is_ok() {
         thread::spawn(move || {
+            let host = format!("{}:{}", host.unwrap(), port.unwrap());
+
             Iron::new(|_: &mut Request| {
                 Ok(Response::with((status::Ok, "Hello world!")))
             }).http(&*host).unwrap();

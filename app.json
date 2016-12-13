@@ -12,6 +12,9 @@
     "USERNAME": {
       "required": true
     },
+    "HTTP_HOST": {
+      "required": true
+    },
     "RUST_VERSION": {
       "value": "nightly"
     }

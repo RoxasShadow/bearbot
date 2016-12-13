@@ -13,6 +13,11 @@ extern crate regex;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate log;
+
+pub mod logger;
+
 pub mod honeypot {
     use std::fmt;
     use std::io::{self, Read};
